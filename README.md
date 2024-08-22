@@ -4,6 +4,7 @@ out-of-tree= 插件代码目录在LLVM源码目录之外
 ```
 # 提前export一个Clang_DIR变量，或者在这里打上绝对路径
 cmake -DCT_Clang_INSTALL_DIR=$Clang_DIR ../xxxx/ # xxx你的插件代码路径
+make
 ```
 编译之后得到一个Libxxx.so文件
 # 使用
