@@ -1,0 +1,1 @@
+/usr/bin/c++ -fPIC  -fno-rtti -fvisibility-inlines-hidden -shared  -o libMacroGuardPlugin.so CMakeFiles/MacroGuardPlugin.dir/MacroGuardPragma.cpp.o CMakeFiles/MacroGuardPlugin.dir/MacroGuardValidator.cpp.o CMakeFiles/MacroGuardPlugin.dir/CodeRefactor.cpp.o 

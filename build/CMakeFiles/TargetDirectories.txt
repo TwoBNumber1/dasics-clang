@@ -1,0 +1,11 @@
+/home/chengyue/MacroGuard/build/CMakeFiles/intrinsics_gen.dir
+/home/chengyue/MacroGuard/build/CMakeFiles/omp_gen.dir
+/home/chengyue/MacroGuard/build/CMakeFiles/acc_gen.dir
+/home/chengyue/MacroGuard/build/CMakeFiles/ARMTargetParserTableGen.dir
+/home/chengyue/MacroGuard/build/CMakeFiles/AArch64TargetParserTableGen.dir
+/home/chengyue/MacroGuard/build/CMakeFiles/RISCVTargetParserTableGen.dir
+/home/chengyue/MacroGuard/build/CMakeFiles/clang-tablegen-targets.dir
+/home/chengyue/MacroGuard/build/CMakeFiles/MacroGuard.dir
+/home/chengyue/MacroGuard/build/CMakeFiles/CodeRefactor.dir
+/home/chengyue/MacroGuard/build/CMakeFiles/edit_cache.dir
+/home/chengyue/MacroGuard/build/CMakeFiles/rebuild_cache.dir
