@@ -46,24 +46,24 @@ void CodeRefactorMatcher::run(const MatchFinder::MatchResult &Result) {
 
   //在Consumer中bind过的name 传递给getNodeAs可以找到该处节点
   llvm::outs() << "ASTMatcher occur.\n" ;
-  const CallExpr *Call = Result.Nodes.getNodeAs<clang::CallExpr>("homebrew_copy");
+  const CallExpr *Call = Result.Nodes.getNodeAs<clang::CallExpr>("A");
   const ASTContext *Ctx = Result.Context;
   const SourceManager &SM = Ctx->getSourceManager();
   //表达式位置
   SourceLocation CallLoc = Call->getExprLoc();
 
-  //参数列表 先跑一个没有参数的
-  QualType VoidTy = Ctx->VoidTy;
-  Expr *Args[] = {};
-  unsigned NumArgs = sizeof(Args) / sizeof(Args[0]);
-  // 找到 函数的声明
-  DeclarationNameInfo Info(Ctx->getIdentifierInfo("printf"));
-  FunctionDecl *FuncDecl = Ctx->getLookupName(CallLoc, Info);
-  // 创建一个新的 CallExpr
-  // 创建函数调用表达式
-  CallExpr *NewCall = CallExpr::Create(Ctx, FuncDecl, CallLoc,
-                                       Call->getType(), Args, NumArgs,
-                                       nullptr, VoidTy);
+  // //参数列表 先跑一个没有参数的
+  // QualType VoidTy = Ctx->VoidTy;
+  // Expr *Args[] = {};
+  // unsigned NumArgs = sizeof(Args) / sizeof(Args[0]);
+  // // 找到 函数的声明
+  // DeclarationNameInfo Info(Ctx->getIdentifierInfoForName("printf"));
+  // FunctionDecl *FuncDecl = Ctx->getLookupName(CallLoc, Info);
+  // // 创建一个新的 CallExpr
+  // // 创建函数调用表达式
+  // CallExpr *NewCall = CallExpr::Create(Ctx, FuncDecl, CallLoc,
+  //                                      Call->getType(), Args, NumArgs,
+  //                                      nullptr, VoidTy);
  
 
   //TODO:插入AST... 
@@ -89,10 +89,10 @@ void CodeRefactorMatcher::onEndOfTranslationUnit() {
 CodeRefactorASTConsumer::CodeRefactorASTConsumer(Rewriter &R)
     : CodeRefactorHandler(R) {
   llvm::outs() << "ASTMatcher ing \n" ;
-    DeclarationMatcher 
+
   // TODO:匹配 or 查找
     const auto MatcherForFunc = callExpr(
-       callee(functionDecl(hasName("homecrew_copy"))));//bind("homecrew_copy")),
+       callee(functionDecl(hasName("A")))).bind("A");
   // const auto MatcherForMemberAccess = cxxMemberCallExpr(
   //     callee(memberExpr(member(hasName(OldName))).bind("MemberAccess")),
   //     thisPointerType(cxxRecordDecl(isSameOrDerivedFrom(hasName(ClassName)))));
@@ -121,6 +121,7 @@ public:
   std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
                                                  StringRef file) override {
     //设置触发时传递给translantion unit的参数 此处传递rewriter
+    llvm::outs() << "ASTMatcher ing \n" ;
     RewriterForCodeRefactor.setSourceMgr(CI.getSourceManager(), CI.getLangOpts());
     return std::make_unique<CodeRefactorASTConsumer>(RewriterForCodeRefactor);
   }
