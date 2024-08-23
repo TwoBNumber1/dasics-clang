@@ -71,7 +71,7 @@ void CodeRefactorMatcher::run(const MatchFinder::MatchResult &Result) {
   SourceRange Range = Call->getSourceRange();
 
   // 创建新的函数调用字符串
-  std::string NewCode = "printf(""New"");\n";
+  std::string NewCode = "printf(\"New\");\n";
 
   // 在函数调用之前插入新的代码
   CodeRefactorRewriter.ReplaceText(SM.getExpansionLoc(Range.getBegin()), 0, NewCode);
