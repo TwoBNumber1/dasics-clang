@@ -40,18 +40,38 @@ using namespace ast_matchers;
 // CodeRefactorMatcher - implementation
 //-----------------------------------------------------------------------------
 
-//代码检查回调 Matcher == handler
+//代码检查回调 Matcher == handler match触发
 void CodeRefactorMatcher::run(const MatchFinder::MatchResult &Result) {
 
   //在Consumer中bind过的name 传递给getNodeAs可以找到该处节点
-  const MemberExpr *MemberAccess =
-      Result.Nodes.getNodeAs<clang::MemberExpr>("MemberAccess");
+  llvm::outs() << "ASTMatcher \n" ;
+  const CallExpr *Call = Result.Nodes.getNodeAs<clang::CallExpr>("homebrew_copy");
+  ASTContext &Ctx = Call->getASTContext();
+  SourceManager &SM = Call->getSourceManager();
+  SourceLocation CallLoc = Call->getLocStart();
 
-  const NamedDecl *MemberDecl =
-      Result.Nodes.getNodeAs<clang::NamedDecl>("MemberDecl");
+  //参数列表
 
-  //TODO:创建节点并插入... 
+  QualType VoidTy = Ctx.VoidTy;
+  Expr *Args[] = {};
+  unsigned NumArgs = sizeof(Args) / sizeof(Args[0]);
+  // 创建一个新的 CallExpr
+  // 创建函数调用表达式
+  CallExpr *NewCall = CallExpr::Create(Ctx, FuncDecl, Call->getLocStart(),
+                                       Call->getType(), Args, NumArgs,
+                                       nullptr, VoidTy);
  
+
+  //TODO:插入AST... 
+  // 获取函数调用的 SourceRange
+  SourceRange Range = Call->getSourceRange();
+
+  // 创建新的函数调用字符串
+  std::string NewCode = "printf(""New"");\n";
+
+    // 在函数调用之前插入新的代码
+  CodeRefactorRewriter.ReplaceText(SM.getExpansionLoc(Range.getBegin()), 0, NewCode);
+
 }
 
 void CodeRefactorMatcher::onEndOfTranslationUnit() {
@@ -65,18 +85,18 @@ void CodeRefactorMatcher::onEndOfTranslationUnit() {
 CodeRefactorASTConsumer::CodeRefactorASTConsumer(Rewriter &R)
     : CodeRefactorHandler(R) {
 
-  // TODO:匹配 or 查找    
+    DeclarationMatcher 
+  // TODO:匹配 or 查找
+    const auto MatcherForFunc = callExpr(
+       callee(functionDecl(hasName("homecrew_copy"))));//bind("homecrew_copy")),
   // const auto MatcherForMemberAccess = cxxMemberCallExpr(
   //     callee(memberExpr(member(hasName(OldName))).bind("MemberAccess")),
   //     thisPointerType(cxxRecordDecl(isSameOrDerivedFrom(hasName(ClassName)))));
 
   // Finder.addMatcher(MatcherForMemberAccess, &CodeRefactorHandler);
 
-  // const auto MatcherForMemberDecl = cxxRecordDecl(
-  //     allOf(isSameOrDerivedFrom(hasName(ClassName)),
-  //           hasMethod(decl(namedDecl(hasName(OldName))).bind("MemberDecl"))));
 
-  // Finder.addMatcher(MatcherForMemberDecl, &CodeRefactorHandler);
+    Finder.addMatcher(MatcherForFunc, &CodeRefactorHandler);
 }
 
 //-----------------------------------------------------------------------------
