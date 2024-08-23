@@ -25,6 +25,7 @@
 
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprCXX.h"
+#include "clang/AST/ASTContext.h"
 #include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/ASTMatchers/ASTMatchers.h"
 #include "clang/Frontend/CompilerInstance.h"
@@ -44,20 +45,23 @@ using namespace ast_matchers;
 void CodeRefactorMatcher::run(const MatchFinder::MatchResult &Result) {
 
   //在Consumer中bind过的name 传递给getNodeAs可以找到该处节点
-  llvm::outs() << "ASTMatcher \n" ;
+  llvm::outs() << "ASTMatcher occur.\n" ;
   const CallExpr *Call = Result.Nodes.getNodeAs<clang::CallExpr>("homebrew_copy");
-  ASTContext &Ctx = Call->getASTContext();
-  SourceManager &SM = Call->getSourceManager();
-  SourceLocation CallLoc = Call->getLocStart();
+  const ASTContext *Ctx = Result.Context;
+  const SourceManager &SM = Ctx->getSourceManager();
+  //表达式位置
+  SourceLocation CallLoc = Call->getExprLoc();
 
-  //参数列表
-
-  QualType VoidTy = Ctx.VoidTy;
+  //参数列表 先跑一个没有参数的
+  QualType VoidTy = Ctx->VoidTy;
   Expr *Args[] = {};
   unsigned NumArgs = sizeof(Args) / sizeof(Args[0]);
+  // 找到 函数的声明
+  DeclarationNameInfo Info(Ctx->getIdentifierInfo("printf"));
+  FunctionDecl *FuncDecl = Ctx->getLookupName(CallLoc, Info);
   // 创建一个新的 CallExpr
   // 创建函数调用表达式
-  CallExpr *NewCall = CallExpr::Create(Ctx, FuncDecl, Call->getLocStart(),
+  CallExpr *NewCall = CallExpr::Create(Ctx, FuncDecl, CallLoc,
                                        Call->getType(), Args, NumArgs,
                                        nullptr, VoidTy);
  
@@ -69,7 +73,7 @@ void CodeRefactorMatcher::run(const MatchFinder::MatchResult &Result) {
   // 创建新的函数调用字符串
   std::string NewCode = "printf(""New"");\n";
 
-    // 在函数调用之前插入新的代码
+  // 在函数调用之前插入新的代码
   CodeRefactorRewriter.ReplaceText(SM.getExpansionLoc(Range.getBegin()), 0, NewCode);
 
 }
@@ -84,7 +88,7 @@ void CodeRefactorMatcher::onEndOfTranslationUnit() {
 // 设置Matcher的匹配规则，匹配成功的AST结点交给handler参数进行处理
 CodeRefactorASTConsumer::CodeRefactorASTConsumer(Rewriter &R)
     : CodeRefactorHandler(R) {
-
+  llvm::outs() << "ASTMatcher ing \n" ;
     DeclarationMatcher 
   // TODO:匹配 or 查找
     const auto MatcherForFunc = callExpr(
