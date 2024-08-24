@@ -80,9 +80,25 @@ void CodeRefactorMatcher::run(const MatchFinder::MatchResult &Result) {
 
 void CodeRefactorMatcher::onEndOfTranslationUnit() {
   // Output to stdout 将修改过的代码打印到标准输出
+  SourceManager &SM = CodeRefactorRewriter.getSourceMgr();
   CodeRefactorRewriter
-      .getEditBuffer(CodeRefactorRewriter.getSourceMgr().getMainFileID())
+      .getEditBuffer(SM.getMainFileID())
       .write(llvm::outs());
+
+  // Output to file 将修改过的代码写入到文件
+  const RewriteBuffer *RewriteBuf = CodeRefactorRewriter.getRewriteBufferFor(SM.getMainFileID());
+    if (RewriteBuf) {
+        std::error_code EC;
+        llvm::raw_fd_ostream Out(SM.getFileEntryRefForID(SM.getMainFileID())->getName(), EC, llvm::sys::fs::OF_None);
+        if (!EC) {
+            RewriteBuf->write(Out);
+            llvm::errs() << "File successfully rewritten.\n";
+        } else {
+            llvm::errs() << "Error opening file for writing: " << EC.message() << "\n";
+        }
+    } else {
+        llvm::errs() << "No modifications to write.\n";
+    }
 }
 
 // 设置Matcher的匹配规则，匹配成功的AST结点交给handler参数进行处理
@@ -115,6 +131,10 @@ public:
 
   static void PrintHelp(llvm::raw_ostream &ros) {
     ros << "Help for CodeRefactor plugin goes here\n";
+  }
+
+  ActionType getActionType() override {
+    return AddAfterMainAction;
   }
 
   // Returns our ASTConsumer per translation unit.
