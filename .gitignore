@@ -1,0 +1,35 @@
+# 忽略由 CMake 生成的构建文件
+/build/
+/CMakeFiles/
+/CMakeCache.txt
+/cmake_install.cmake
+/Makefile
+
+# 忽略编译生成的二进制文件
+*.o
+*.so
+*.a
+*.out
+*.exe
+
+# 忽略编辑器和操作系统生成的临时文件
+*.swp
+*.swo
+*~
+*.bak
+*.tmp
+.DS_Store
+Thumbs.db
+
+# 忽略日志文件
+*.log
+
+# 忽略用户特定的配置文件
+*.user
+*.workspace
+
+# 忽略测试生成的文件
+/test/output
+/test/*.o
+/test/*.out
+/test/*.exe

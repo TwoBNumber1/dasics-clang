@@ -1,9 +1,0 @@
-/home/zhangyulong/dasics-clang/CMakeFiles/intrinsics_gen.dir
-/home/zhangyulong/dasics-clang/CMakeFiles/omp_gen.dir
-/home/zhangyulong/dasics-clang/CMakeFiles/acc_gen.dir
-/home/zhangyulong/dasics-clang/CMakeFiles/RISCVTargetParserTableGen.dir
-/home/zhangyulong/dasics-clang/CMakeFiles/clang-tablegen-targets.dir
-/home/zhangyulong/dasics-clang/CMakeFiles/MacroGuard.dir
-/home/zhangyulong/dasics-clang/CMakeFiles/CodeRefactor.dir
-/home/zhangyulong/dasics-clang/CMakeFiles/edit_cache.dir
-/home/zhangyulong/dasics-clang/CMakeFiles/rebuild_cache.dir
