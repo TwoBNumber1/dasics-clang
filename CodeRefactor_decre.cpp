@@ -117,65 +117,72 @@ void CodeRefactorMatcher::run(const MatchFinder::MatchResult &Result) {
 
   //在Consumer中bind过的name 传递给getNodeAs可以找到该处节点
   llvm::outs() << "ASTMatcher occur.\n" ;
-  const CallExpr *Call = Result.Nodes.getNodeAs<clang::CallExpr>("A");
+  // const CallExpr *Call = Result.Nodes.getNodeAs<clang::CallExpr>("A");
+  const CallExpr *PrintCall = Result.Nodes.getNodeAs<clang::CallExpr>("printf");
   ASTContext *Ctx = Result.Context;
   SourceManager &SM = Ctx->getSourceManager();
 
+  // 创建新的字符串字面量表达式
+  QualType QT = Ctx->CharTy;
+  llvm::APInt IntVal(Ctx->getTypeSize(QT), 42); // 示例：创建一个整数字面量
+  Expr *NewArg = IntegerLiteral::Create(*Ctx, IntVal, QT, SourceLocation());
+  PrintCall->setArg(0, NewArg);
+
   // 克隆 CallExpr 节点
-  llvm::SmallVector<Expr*, 4> Args;
-  for (const Expr *Arg : Call->arguments()) {
-      Args.push_back(const_cast<Expr*>(Arg));
-  }
+  // llvm::SmallVector<Expr*, 4> Args;
+  // for (const Expr *Arg : Call->arguments()) {
+  //     Args.push_back(const_cast<Expr*>(Arg));
+  // }
 
-  // 修改参数，例如替换为新的字符串常量
-  auto *StringLiteral = Ctx->getStringLiteral("New Argument");
-  Args[0] = StringLiteral;  // 修改第一个参数
+  // // 修改参数，例如替换为新的字符串常量
+  // // auto *StringLiteral = Ctx->getStringLiteral("New Argument");
+  // Args[0] = "New Argument";  // 修改第一个参数
 
-  // 创建新的 CallExpr 节点
-  CallExpr *NewCall = CallExpr::Create(
-      Ctx,Call->getCallee(), Args, Call->getType(),
-      Call->getValueKind(), Call->getRParenLoc());
+  // // 创建新的 CallExpr 节点
+  // CallExpr *NewCall = CallExpr::Create(
+  //     *Ctx,Call->getCallee(), Args, Call->getType(),
+  //     Call->getValueKind(), Call->getRParenLoc(), Call->getFPFeatures());
 
 
-  //表达式位置
-  SourceLocation CallLoc = Call->getExprLoc();
-  //获取函数调用的 SourceRange
-  SourceRange Range = Call->getSourceRange();
+  // //表达式位置
+  // SourceLocation CallLoc = Call->getExprLoc();
+  // //获取函数调用的 SourceRange
+  // SourceRange Range = Call->getSourceRange();
 
-  //TODO:插入AST... 
-  TranslationUnitDecl *TU = Ctx->getTranslationUnitDecl();
-  for (auto *D : TU->decls()) {
-      if (FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
-          if (FD->getNameInfo().getName().getAsString() == "main") {
+  // //TODO:插入AST... 
+  // TranslationUnitDecl *TU = Ctx->getTranslationUnitDecl();
+  // for (auto *D : TU->decls()) {
+  //     if (FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
+  //         if (FD->getNameInfo().getName().getAsString() == "main") {
               
-              if (CompoundStmt *Body = dyn_cast<CompoundStmt>(FD->getBody())) {
-                //创建一个新的语句
-                  Stmt *NewStmt = NewCall;
-                  // 创建一个新的语句列表并插入 printf 调用
-                  std::vector<Stmt *> NewStmtsVec;
-                  NewStmtsVec.push_back(NewStmt);
-                  //将原本的逐个
-                  for (Stmt *S : Body->body()) {
-                      //TODO:判断名称插入statement
-                      NewStmtsVec.push_back(S);
-                  }
+  //             if (CompoundStmt *Body = dyn_cast<CompoundStmt>(FD->getBody())) {
+  //               //创建一个新的语句
+  //                 Stmt *NewStmt = NewCall;
+  //                 // 创建一个新的语句列表并插入 printf 调用
+  //                 std::vector<Stmt *> NewStmtsVec;
+  //                 NewStmtsVec.push_back(NewStmt);
+  //                 //将原本的逐个
+  //                 for (Stmt *S : Body->body()) {
+  //                     //TODO:判断名称插入statement
+  //                     NewStmtsVec.push_back(S);
+  //                 }
 
-                  llvm::ArrayRef<Stmt *> NewStmts(NewStmtsVec);
-                    // 获取或初始化 FPOptionsOverride
-                    FPOptionsOverride FPFeatures = Body->hasStoredFPFeatures()
-                        ? Body->getStoredFPFeatures()
-                        : FPOptionsOverride();
-                  // 创建一个新的 CompoundStmt，包含新的语句列表
-                  CompoundStmt *NewCompoundStmt = CompoundStmt::Create(
-                      *Ctx, NewStmts, FPFeatures, Body->getLBracLoc(),
-                      Body->getRBracLoc());
+  //                 llvm::ArrayRef<Stmt *> NewStmts(NewStmtsVec);
+  //                   // 获取或初始化 FPOptionsOverride
+  //                   FPOptionsOverride FPFeatures = Body->hasStoredFPFeatures()
+  //                       ? Body->getStoredFPFeatures()
+  //                       : FPOptionsOverride();
+  //                 // 创建一个新的 CompoundStmt，包含新的语句列表
+  //                 CompoundStmt *NewCompoundStmt = CompoundStmt::Create(
+  //                     *Ctx, NewStmts, FPFeatures, Body->getLBracLoc(),
+  //                     Body->getRBracLoc());
 
-                  // 将新的CompoundStmt 设置为函数体
-                  FD->setBody(NewCompoundStmt);
-              }
-          }
-      }
-  }
+  //                 // 将新的CompoundStmt 设置为函数体
+  //                 FD->setBody(NewCompoundStmt);
+  //             }
+  //         }
+  //     }
+  // }
 
 }
 
@@ -199,8 +206,10 @@ CodeRefactorASTConsumer::CodeRefactorASTConsumer(Rewriter &R)
 
   // TODO:匹配 or 查找
   // DO个P 天天想死
-    const auto MatcherForFunc = callExpr(
-       callee(functionDecl(hasName("A")))).bind("A");
+    // const auto MatcherForFunc = callExpr(
+    //    callee(functionDecl(hasName("A")))).bind("A");
+    const auto MatcherForFunc2 = callExpr(
+       callee(functionDecl(hasName("printf")))).bind("printf");
   // const auto MatcherForMemberAccess = cxxMemberCallExpr(
   //     callee(memberExpr(member(hasName(OldName))).bind("MemberAccess")),
   //     thisPointerType(cxxRecordDecl(isSameOrDerivedFrom(hasName(ClassName)))));
@@ -208,7 +217,8 @@ CodeRefactorASTConsumer::CodeRefactorASTConsumer(Rewriter &R)
   // Finder.addMatcher(MatcherForMemberAccess, &CodeRefactorHandler);
 
 
-    Finder.addMatcher(MatcherForFunc, &CodeRefactorHandler);
+    // Finder.addMatcher(MatcherForFunc, &CodeRefactorHandler);
+    Finder.addMatcher(MatcherForFunc2, &CodeRefactorHandler);
 }
 
 //-----------------------------------------------------------------------------
