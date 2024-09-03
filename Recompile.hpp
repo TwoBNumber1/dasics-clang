@@ -52,3 +52,10 @@ inline void compile(clang::CompilerInstance *CI,
   // clean up rewrite buffer  产生修改后的代码，并且不改变源文件
   FileMemoryBuffer.release();
 }
+
+class MyPragmaHandler : public clang::PragmaHandler {
+public:
+  MyPragmaHandler() : PragmaHandler("bound") {}
+
+  void HandlePragma(clang::Preprocessor &PP, clang::PragmaIntroducer Introducer, clang::Token &FirstToken) override;
+};

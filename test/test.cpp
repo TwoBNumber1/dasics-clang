@@ -1,12 +1,11 @@
 #include <stdio.h>
 
-int A(char* src) {
-    printf("A: %s\n", src);
+int A(void) {
     return 1;
 }
 int main() {
-    #pragma bound ((src, src+len, DASICS_LIBCFG_R), (dest, dest+len, DASICS_LIBCFG_W))
+    #pragma bound (stack_buffer, 1024, DASICS_LIBCFG_V | DASICS_LIBCFG_W | DASICS_LIBCFG_R)
+    A();
     printf("execution.\n");
-    A("New");
     return 0;
 }
