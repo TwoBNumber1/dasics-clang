@@ -14,22 +14,11 @@ clang -fplugin=./xxx.so -Xclang -plugin-arg-CodeRefactor test.cpp
 clang -cc1 -load ./xxx.so -plugin xxx test.cpp
 ```
 
-# 关于同时生成可执行文件的说明
+# RISCV 交叉编译命令
+ clang --target=riscv64-unknown-linux-gnu -march=rv64gc -fPIC -Xclang -load -Xclang ./libCodeRefactor.so -fno-stack-protector -O0 -g -static --sysroot=/opt/riscv/sysroot -I/yourpath/DASICS-case-study/LibDASICS/include  -L/opt/riscv/sysroot/usr/lib -L/opt/riscv/sysroot/lib source/attack-case.c -o build/attack-case /yourpath/DASICS-case-study/LibDASICS/build/LibDASICS.a -T/yourpath/DASICS-case-study/LibDASICS/ld.lds 
 
-1. 在`class CodeRefactorAddPluginAction : public PluginASTAction`中实现`ActionType getActionType()`，即可自动执行plugin代码，例如
-``` C
-ActionType getActionType() override {
-    return AddAfterMainAction;
-}
-```
-
-2. plugin加载方式。[参考官网](https://clang.llvm.org/docs/ClangPlugins.html#clang-plugins)
-
-```
-clang -fplugin=./${plugin_file} ./${test_file} -o output
-```
-
-3. 关于`ActionType`的说明，参考[clang::PluginASTAction Class Reference](https://clang.llvm.org/doxygen/classclang_1_1PluginASTAction.html)
+# qemu
+...
 
 # 参考link
 https://github.com/xiaoweiChen/LLVM-Techniques-Tips-and-Best-Practies

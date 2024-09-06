@@ -19,7 +19,7 @@ inline void compile(clang::CompilerInstance *CI,
   auto &CodeGenOpts { CI->getCodeGenOpts() };
   auto &Target { CI->getTarget() };
   auto &Diagnostics { CI->getDiagnostics() };
-
+  llvm::outs() << "recompile.hpp\n";
   // create new compiler instance
   auto CInvNew { std::make_shared<clang::CompilerInvocation>() };
 
@@ -55,7 +55,9 @@ inline void compile(clang::CompilerInstance *CI,
 
 class MyPragmaHandler : public clang::PragmaHandler {
 public:
-  MyPragmaHandler() : PragmaHandler("bound") {}
 
+  MyPragmaHandler() : PragmaHandler("bound"),IsChecked(false) {}
+  
+  
   void HandlePragma(clang::Preprocessor &PP, clang::PragmaIntroducer Introducer, clang::Token &FirstToken) override;
 };
