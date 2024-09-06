@@ -56,7 +56,7 @@ inline void compile(clang::CompilerInstance *CI,
 class MyPragmaHandler : public clang::PragmaHandler {
 public:
 
-  MyPragmaHandler() : PragmaHandler("bound"),IsChecked(false) {}
+  MyPragmaHandler() : PragmaHandler("bound") {}
   
   
   void HandlePragma(clang::Preprocessor &PP, clang::PragmaIntroducer Introducer, clang::Token &FirstToken) override;

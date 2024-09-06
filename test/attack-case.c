@@ -31,7 +31,6 @@ int main(int argc, char * argv[])
 
     printf("> [Begin] Call Malicious\n");
 
-    #pragma bound (stack_buffer, 1024, DASICS_LIBCFG_V | DASICS_LIBCFG_W | DASICS_LIBCFG_R)
     // stack_buffer_handler =  dasics_libcfg_alloc(DASICS_LIBCFG_V | DASICS_LIBCFG_W | DASICS_LIBCFG_R, \
     //                                                     (uint64_t)stack_buffer, \
     //                                                     (uint64_t)stack_buffer + 1024 -1 );
@@ -41,7 +40,10 @@ int main(int argc, char * argv[])
     // stack_handler = dasics_libcfg_alloc(DASICS_LIBCFG_V | DASICS_LIBCFG_W | DASICS_LIBCFG_R, \
     //                                                     sp - 0x2000, \
     //                                                     sp);
-    lib_call(&Malicious, (uint64_t)stack_buffer);
+    #pragma untrusted_call
+    #pragma bound (stack_buffer, 1024, DASICS_LIBCFG_V | DASICS_LIBCFG_W | DASICS_LIBCFG_R)
+    Malicious(NULL, stack_buffer);
+    // lib_call(&Malicious, (uint64_t)stack_buffer);
 
     printf("> [End] Back to Main\n");
 

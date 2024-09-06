@@ -179,10 +179,11 @@ public:
 
     // 创建新的函数调用字符串
     std::string BoudCode = "" + Args[0] + "_handler = dasics_libcfg_alloc(" \
-      + Args[2] + ", (uint64_t)" + Args[0] + ", (uint64_t)" + Args[0] + " + " + Args[1] + " - 1);\n";
-    std::string SPHandeCode = std::string("") + "uint64_t sp;\n" + "asm volatile (\"mv %0, sp\" : \"=r\"(sp));\n" \
-      + "\nstack_handler = dasics_libcfg_alloc(DASICS_LIBCFG_V | DASICS_LIBCFG_W | DASICS_LIBCFG_R, sp - 0x2000, sp);\n";
-    std::string FreeCode = std::string("") + "dasics_libcfg_free(" + Args[0] + "_handler);\n" + "dasics_libcfg_free(stack_handler);\n";
+      + Args[2] + ", (uint64_t)" + Args[0] + ", (uint64_t)" + Args[0] + " + " + Args[1] + " - 1);\n\t";
+    std::string SPHandeCode = std::string("") + "uint64_t sp;\n\t" + "asm volatile (\"mv %0, sp\" : \"=r\"(sp));\n\t" \
+      + "stack_handler = dasics_libcfg_alloc(DASICS_LIBCFG_V | DASICS_LIBCFG_W | DASICS_LIBCFG_R, sp - 0x2000, sp);\n\t";
+    std::string FreeCode = std::string("") + "dasics_libcfg_free(" + Args[0] + "_handler);\n\t" + "dasics_libcfg_free(stack_handler);\n\t";
+    std::string CallCode = std::string("") + "lib_call(&" + UFuncName + ", (uint64_t)" + Args[0] + ");\n\t";
 
     //找到主函数 -> FileID
     FunctionDecl *Main = nullptr;
@@ -196,8 +197,7 @@ public:
     }
     // 在函数调用之前插入新的代码
     llvm::outs() << "Rewrite text.. ..\n"; 
-    FileRewriter_->InsertText(CallLoc , BoudCode, true);
-    FileRewriter_->InsertText(CallLoc , SPHandeCode, true);
+
     // 获取函数调用的结束位置
     SourceLocation EndLoc = Call->getEndLoc();
     // 移动到分号之后的位置
@@ -208,6 +208,9 @@ public:
           break;
       }
     }
+    FileRewriter_->ReplaceText(SourceRange(CallLoc, EndLoc), CallCode);
+    FileRewriter_->InsertText(CallLoc , BoudCode, true);
+    FileRewriter_->InsertText(CallLoc , SPHandeCode, true);
     FileRewriter_->InsertText(EndLoc, FreeCode, true);
     //FileRewriter_->InsertText(EndLoc, "printf(\"New\");", true);
 
