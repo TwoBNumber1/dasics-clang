@@ -39,20 +39,17 @@
 using namespace clang;
 
 std::vector<std::string> Args;
+std::vector<std::vector<std::string>> Args_vec;
+std::map<std::string, std::vector<std::vector<std::string>>> Bound_map;
 std::string UFuncName;
-bool isChecked = false;
-
-void MyPragmaHandler::HandlePragma(clang::Preprocessor &PP, clang::PragmaIntroducer Introducer, clang::Token &FirstToken) {
-
-
+bool is_recompile = false;
+void BoundHandler::HandlePragma(clang::Preprocessor &PP, clang::PragmaIntroducer Introducer, clang::Token &FirstToken) {
   clang::SourceLocation Loc = FirstToken.getLocation();
   clang::SourceManager &SM = PP.getSourceManager();
 
-  if(isChecked){
-    llvm::outs() << "Bound has been checked, return.";
+  if(is_recompile){
     return;
   }
-
 
   /* 解析pragma后面紧跟的参数 以逗号区分不同参数 以括号为边界 嵌套括号整体视为一个参数 */
   clang::Token Tok;
@@ -116,13 +113,20 @@ void MyPragmaHandler::HandlePragma(clang::Preprocessor &PP, clang::PragmaIntrodu
     PP.getDiagnostics().Report(Loc, PP.getDiagnostics().getCustomDiagID(clang::DiagnosticsEngine::Error, "Expected exactly three arguments in #pragma bound"));
     return;
   }
-  // for (auto &Arg : Args) {
-  //   llvm::outs() << "Found #pragma bound with arguments: " << Arg << "\n";
-  // }
-
+  Args_vec.push_back(Args);
   llvm::outs() << "Found #pragma bound with arguments: " << Args[0] << ", " << Args[1] << ", " << Args[2] << "\n";
+}
 
+void UntrustedCallHandler::HandlePragma(clang::Preprocessor &PP, clang::PragmaIntroducer Introducer, clang::Token &FirstToken) {
   /* 解析紧跟在 #pragma 后面的函数调用 使用一个自定义的lexer 避免影响预处理器 不过函数还是需要去符号表查一下 */
+  clang::Token Tok;
+  clang::SourceLocation Loc = FirstToken.getLocation();
+
+  if(is_recompile){
+    return;
+  }
+
+  PP.Lex(Tok);
   while(Tok.isNot(tok::eod)) {
     PP.Lex(Tok);
   }
@@ -142,15 +146,19 @@ void MyPragmaHandler::HandlePragma(clang::Preprocessor &PP, clang::PragmaIntrodu
     if (Tok.is(clang::tok::l_paren)) {
       UFuncName = Func_token.getIdentifierInfo()->getName().str();
       llvm::outs() << "Found function call: " << UFuncName << "\n";
+      Bound_map[UFuncName] = Args_vec;
+      llvm::outs() << "With bound: \n";
+      for(auto &arg : Args_vec){
+        for(auto &arg_item : arg){
+          llvm::outs() << arg_item << " ";
+        }
+        llvm::outs() << "\n";
+      }
     } else {
       PP.getDiagnostics().Report(Loc, PP.getDiagnostics().getCustomDiagID(clang::DiagnosticsEngine::Error, "Expected '(' after function name"));
     }
   } else {
     PP.getDiagnostics().Report(Loc, PP.getDiagnostics().getCustomDiagID(clang::DiagnosticsEngine::Error, "Expected function name after #pragma bound"));
-  }
-
-  if(!isChecked){
-    isChecked = true;
   }
   
 }
@@ -221,10 +229,10 @@ public:
 void onEndOfTranslationUnit() override{
   // Output to stdout 将修改过的代码打印到标准输出
   llvm::outs() << "onEndOfTranslationUnit\n";
-  if(FileRewriter_){llvm::outs() << "onEndOfTranslationUnit11\n";}
+  // if(FileRewriter_){llvm::outs() << "onEndOfTranslationUnit11\n";}
   
-  FileRewriter_->getEditBuffer(FileRewriter_->getSourceMgr().getMainFileID()).write(llvm::outs());
-  llvm::outs() << "onEndOfTranslationUnit12\n";
+  // FileRewriter_->getEditBuffer(FileRewriter_->getSourceMgr().getMainFileID()).write(llvm::outs());
+  // llvm::outs() << "onEndOfTranslationUnit12\n";
 }
 
 private:
@@ -325,14 +333,14 @@ protected:
   void EndSourceFileAction() override{
      auto FileRewriteBuffer { FileRewriter_.getRewriteBufferFor(FileID_) };
      llvm::outs() << "EndSourceFileAction ing\n";
-     llvm::outs()<< UFuncName << "\n";
+    //  llvm::outs()<< UFuncName << "\n";
     if (!FileRewriteBuffer) {
         llvm::outs() << "Rewrite buffer is null, no modifications to apply.\n";
         //return;
     }else{
-       llvm::outs() << "aaaaaa:\n";
       std::string BufferContent = std::string(FileRewriteBuffer->begin(), FileRewriteBuffer->end());
       llvm::outs() << "Recompile Modified Code:\n" << BufferContent << "\n";
+      is_recompile = true;
       compile(CI_, FileName_, FileRewriteBuffer->begin(), FileRewriteBuffer->end());
     }
 
@@ -348,4 +356,5 @@ private:
 };
 
 static clang::FrontendPluginRegistry::Add<FireAction> X("CodeRefactor", "generate code by recompile.");
-static PragmaHandlerRegistry::Add<MyPragmaHandler> P("bound", "");
+static PragmaHandlerRegistry::Add<BoundHandler> P("bound", "");
+static PragmaHandlerRegistry::Add<UntrustedCallHandler> P2("untrusted_call", "");

@@ -40,8 +40,8 @@ int main(int argc, char * argv[])
     // stack_handler = dasics_libcfg_alloc(DASICS_LIBCFG_V | DASICS_LIBCFG_W | DASICS_LIBCFG_R, \
     //                                                     sp - 0x2000, \
     //                                                     sp);
-    #pragma untrusted_call
     #pragma bound (stack_buffer, 1024, DASICS_LIBCFG_V | DASICS_LIBCFG_W | DASICS_LIBCFG_R)
+    #pragma untrusted_call
     Malicious(NULL, stack_buffer);
     // lib_call(&Malicious, (uint64_t)stack_buffer);
 
