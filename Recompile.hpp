@@ -53,11 +53,18 @@ inline void compile(clang::CompilerInstance *CI,
   FileMemoryBuffer.release();
 }
 
-class MyPragmaHandler : public clang::PragmaHandler {
+class BoundHandler : public clang::PragmaHandler {
 public:
 
-  MyPragmaHandler() : PragmaHandler("bound"),IsChecked(false) {}
+  BoundHandler() : PragmaHandler("bound") {}
   
   
+  void HandlePragma(clang::Preprocessor &PP, clang::PragmaIntroducer Introducer, clang::Token &FirstToken) override;
+};
+
+class UntrustedCallHandler : public clang::PragmaHandler {
+public:
+  UntrustedCallHandler() : PragmaHandler("untrusted_call") {}
+
   void HandlePragma(clang::Preprocessor &PP, clang::PragmaIntroducer Introducer, clang::Token &FirstToken) override;
 };

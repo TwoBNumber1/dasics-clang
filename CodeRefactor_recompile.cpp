@@ -38,27 +38,23 @@
 #include "Recompile.hpp"
 using namespace clang;
 
-
-
-//---------------------  BoundHandler  begin ---------------------
-bool BoundIsChecked = false;
 std::vector<std::string> Args;
+std::vector<std::vector<std::string>> Args_vec;
+std::map<std::string, std::vector<std::vector<std::string>>> Bound_map;
 std::string UFuncName;
-void MyPragmaHandler::HandlePragma(clang::Preprocessor &PP, clang::PragmaIntroducer Introducer, clang::Token &FirstToken) {
-
-
+bool is_recompile = false;
+void BoundHandler::HandlePragma(clang::Preprocessor &PP, clang::PragmaIntroducer Introducer, clang::Token &FirstToken) {
   clang::SourceLocation Loc = FirstToken.getLocation();
   clang::SourceManager &SM = PP.getSourceManager();
 
-  if(BoundIsChecked){
-    llvm::outs() << "Bound has been checked, return.";
+  if(is_recompile){
     return;
   }
 
   /* 解析pragma后面紧跟的参数 以逗号区分不同参数 以括号为边界 嵌套括号整体视为一个参数 */
   clang::Token Tok;
   PP.Lex(Tok);
-  //llvm::outs() << Tok.getIdentifierInfo()->getName().str()<<"\n";
+
   if (Tok.isNot(clang::tok::l_paren)) {
     PP.getDiagnostics().Report(Loc, PP.getDiagnostics().getCustomDiagID(clang::DiagnosticsEngine::Error, "Expected '(' after #pragma bound"));
     return;
@@ -110,23 +106,28 @@ void MyPragmaHandler::HandlePragma(clang::Preprocessor &PP, clang::PragmaIntrodu
       PP.getDiagnostics().Report(Loc, PP.getDiagnostics().getCustomDiagID(clang::DiagnosticsEngine::Error, "Unexpected token in #pragma bound arguments"));
       return;
     }
+    
   }
 
   if (Args.size() != 3) {
     PP.getDiagnostics().Report(Loc, PP.getDiagnostics().getCustomDiagID(clang::DiagnosticsEngine::Error, "Expected exactly three arguments in #pragma bound"));
     return;
   }
-  // for (auto &Arg : Args) {
-  //   llvm::outs() << "Found #pragma bound with arguments: " << Arg << "\n";
-  // }
-
+  Args_vec.push_back(Args);
   llvm::outs() << "Found #pragma bound with arguments: " << Args[0] << ", " << Args[1] << ", " << Args[2] << "\n";
+}
 
+void UntrustedCallHandler::HandlePragma(clang::Preprocessor &PP, clang::PragmaIntroducer Introducer, clang::Token &FirstToken) {
   /* 解析紧跟在 #pragma 后面的函数调用 使用一个自定义的lexer 避免影响预处理器 不过函数还是需要去符号表查一下 */
+  clang::Token Tok;
+  clang::SourceLocation Loc = FirstToken.getLocation();
 
+  if(is_recompile){
+    return;
+  }
 
-  // 到达第一个非空行的标记位置
-    while(Tok.isNot(tok::eod)) {
+  PP.Lex(Tok);
+  while(Tok.isNot(tok::eod)) {
     PP.Lex(Tok);
   }
   clang::SourceLocation FuncLoc = Tok.getLocation();
@@ -139,87 +140,28 @@ void MyPragmaHandler::HandlePragma(clang::Preprocessor &PP, clang::PragmaIntrodu
   if (Tok.is(clang::tok::raw_identifier)) {
     PP.LookUpIdentifierInfo(Tok);
   }
-
-
   if (Tok.is(clang::tok::identifier)) {
     clang::Token Func_token = Tok;
     Lexer.LexFromRawLexer(Tok);
     if (Tok.is(clang::tok::l_paren)) {
       UFuncName = Func_token.getIdentifierInfo()->getName().str();
       llvm::outs() << "Found function call: " << UFuncName << "\n";
+      Bound_map[UFuncName] = Args_vec;
+      llvm::outs() << "With bound: \n";
+      for(auto &arg : Args_vec){
+        for(auto &arg_item : arg){
+          llvm::outs() << arg_item << " ";
+        }
+        llvm::outs() << "\n";
+      }
     } else {
       PP.getDiagnostics().Report(Loc, PP.getDiagnostics().getCustomDiagID(clang::DiagnosticsEngine::Error, "Expected '(' after function name"));
     }
   } else {
     PP.getDiagnostics().Report(Loc, PP.getDiagnostics().getCustomDiagID(clang::DiagnosticsEngine::Error, "Expected function name after #pragma bound"));
   }
-
-  if(!BoundIsChecked){
-    BoundIsChecked = true;
-  } 
+  
 }
-//---------------------  BoundHandler end ---------------------
-
-//---------------  UntrusredCallHandler begin -----------------
-bool UntrustIsChecked = false;
-std::string UntrustedFuncName;
-void UntrustedPragmaHandler::HandlePragma(clang::Preprocessor &PP, clang::PragmaIntroducer Introducer, clang::Token &FirstToken) {
-
-  clang::SourceLocation Loc = FirstToken.getLocation();
-  clang::SourceManager &SM = PP.getSourceManager();
-
-  if(UntrustIsChecked){
-    llvm::outs() << "Untrusted function has been modified, return.";
-    return;
-  }
-
-  /* 解析紧跟在 #pragma 后面的函数调用 使用一个自定义的lexer 避免影响预处理器 不过函数还是需要去符号表查一下 */
-
-  // 跳过所有空行、注释和其他无效标记
-  clang::Token Tok;
-  do {
-      PP.Lex(Tok);
-      // 跳过注释、空行以及任何 pragma 指令
-      while (Tok.is(clang::tok::comment) || Tok.is(clang::tok::eod) || Tok.is(clang::tok::unknown)) {
-          PP.Lex(Tok);
-      }
-  } while (Tok.is(clang::tok::eod));
-
-  // 到达第一个非空行的标记位置
-  clang::SourceLocation FuncLoc = Tok.getLocation();
-  clang::Lexer Lexer(FuncLoc, PP.getLangOpts(), PP.getSourceManager().getCharacterData(FuncLoc), 
-                    PP.getSourceManager().getCharacterData(FuncLoc), 
-                    PP.getSourceManager().getCharacterData(FuncLoc) + 10);
-  Lexer.SetKeepWhitespaceMode(true);
-
-// 词法解析第一个非 pragma 的函数
-Lexer.LexFromRawLexer(Tok);
-while (Tok.is(clang::tok::unknown)) {
-    Lexer.LexFromRawLexer(Tok);
-}
-
-if (Tok.is(clang::tok::raw_identifier)) {
-    PP.LookUpIdentifierInfo(Tok); // 将标识符解析为函数名
-}
-
-if (Tok.is(clang::tok::identifier)) {
-    clang::Token Func_token = Tok;
-    Lexer.LexFromRawLexer(Tok);
-    if (Tok.is(clang::tok::l_paren)) {
-        UFuncName = Func_token.getIdentifierInfo()->getName().str();
-        llvm::outs() << "Found function call: " << UFuncName << "\n";
-    } else {
-        PP.getDiagnostics().Report(Loc, PP.getDiagnostics().getCustomDiagID(clang::DiagnosticsEngine::Error, "Expected '(' after function name"));
-    }
-} else {
-    PP.getDiagnostics().Report(Loc, PP.getDiagnostics().getCustomDiagID(clang::DiagnosticsEngine::Error, "Expected function name after #pragma bound"));
-}
-  if(!UntrustIsChecked){
-    UntrustIsChecked = true;
-  } 
-}
-//---------------------  UntrustedCallHandler end ---------------------
-
 
 class FireMatchCallback : public clang::ast_matchers::MatchFinder::MatchCallback
 {
@@ -235,24 +177,21 @@ public:
 
   void run(clang::ast_matchers::MatchFinder::MatchResult const &Result) override{
     //在Consumer中bind过的name 传递给getNodeAs可以找到该处节点
-    llvm::outs() << "ASTMatcher ("<< UFuncName << " function) occur.\n" ;
+    llvm::outs() << "ASTMatcher occur.\n" ;
     const CallExpr *Call = Result.Nodes.getNodeAs<clang::CallExpr>(UFuncName);
     const SourceManager &SM = Context_.getSourceManager();
     //表达式位置
     SourceLocation CallLoc = Call->getExprLoc();
     // 获取函数调用的 SourceRange
     SourceRange Range = Call->getSourceRange();
-    SourceLocation StartLoc1 = Call->getBeginLoc();
-    SourceLocation EndLoc1 = Call->getEndLoc().getLocWithOffset(1);  // Get the full range of the call
-
-    FileRewriter_->ReplaceText(SourceRange(StartLoc1, EndLoc1)," lib_call(&Malicious, (uint64_t)stack_buffer);");
 
     // 创建新的函数调用字符串
     std::string BoudCode = "" + Args[0] + "_handler = dasics_libcfg_alloc(" \
-      + Args[2] + ", (uint64_t)" + Args[0] + ", (uint64_t)" + Args[0] + " + " + Args[1] + " - 1);\n";
-    std::string SPHandeCode = std::string("") + "uint64_t sp;\n" + "asm volatile (\"mv %0, sp\" : \"=r\"(sp));\n" \
-      + "\nstack_handler = dasics_libcfg_alloc(DASICS_LIBCFG_V | DASICS_LIBCFG_W | DASICS_LIBCFG_R, sp - 0x2000, sp);\n";
-    std::string FreeCode = std::string("\n") + "dasics_libcfg_free(" + Args[0] + "_handler);\n" + "dasics_libcfg_free(stack_handler);\n";
+      + Args[2] + ", (uint64_t)" + Args[0] + ", (uint64_t)" + Args[0] + " + " + Args[1] + " - 1);\n\t";
+    std::string SPHandeCode = std::string("") + "uint64_t sp;\n\t" + "asm volatile (\"mv %0, sp\" : \"=r\"(sp));\n\t" \
+      + "stack_handler = dasics_libcfg_alloc(DASICS_LIBCFG_V | DASICS_LIBCFG_W | DASICS_LIBCFG_R, sp - 0x2000, sp);\n\t";
+    std::string FreeCode = std::string("") + "dasics_libcfg_free(" + Args[0] + "_handler);\n\t" + "dasics_libcfg_free(stack_handler);\n\t";
+    std::string CallCode = std::string("") + "lib_call(&" + UFuncName + ", (uint64_t)" + Args[0] + ");\n\t";
 
     //找到主函数 -> FileID
     FunctionDecl *Main = nullptr;
@@ -265,9 +204,8 @@ public:
         }
     }
     // 在函数调用之前插入新的代码
-    llvm::outs() << "Insert ..\n"; 
-    FileRewriter_->InsertText(CallLoc , BoudCode, true);
-    FileRewriter_->InsertText(CallLoc , SPHandeCode, true);
+    llvm::outs() << "Rewrite text.. ..\n"; 
+
     // 获取函数调用的结束位置
     SourceLocation EndLoc = Call->getEndLoc();
     // 移动到分号之后的位置
@@ -278,18 +216,23 @@ public:
           break;
       }
     }
+    FileRewriter_->ReplaceText(SourceRange(CallLoc, EndLoc), CallCode);
+    FileRewriter_->InsertText(CallLoc , BoudCode, true);
+    FileRewriter_->InsertText(CallLoc , SPHandeCode, true);
     FileRewriter_->InsertText(EndLoc, FreeCode, true);
-    
+    //FileRewriter_->InsertText(EndLoc, "printf(\"New\");", true);
+
     *FileID_ = SM.getFileID(Main->getBeginLoc());
 
   }
   
 void onEndOfTranslationUnit() override{
   // Output to stdout 将修改过的代码打印到标准输出
+  llvm::outs() << "onEndOfTranslationUnit\n";
+  // if(FileRewriter_){llvm::outs() << "onEndOfTranslationUnit11\n";}
   
-  if(FileRewriter_){ llvm::outs() << " onEndOfTranslationUnit out ...\n"; }
-  FileRewriter_->getEditBuffer(FileRewriter_->getSourceMgr().getMainFileID()).write(llvm::outs());
-
+  // FileRewriter_->getEditBuffer(FileRewriter_->getSourceMgr().getMainFileID()).write(llvm::outs());
+  // llvm::outs() << "onEndOfTranslationUnit12\n";
 }
 
 private:
@@ -327,11 +270,11 @@ public:
   void HandleTranslationUnit(clang::ASTContext &Context) override
   {
     using namespace clang::ast_matchers;
-    
+    /*
     llvm::outs() << "traversing. \n" ;
     CallExprVisitor Visitor;
     Visitor.TraverseDecl(Context.getTranslationUnitDecl());
-    
+    */
     llvm::outs()  << "add Matcher...\n";
      // TODO:匹配 or 查找
     const auto MatcherForFunc = callExpr(callee(functionDecl(hasName(UFuncName)))).bind(UFuncName);
@@ -340,13 +283,6 @@ public:
     // create and run match finder
     clang::ast_matchers::MatchFinder MatchFinder;
     MatchFinder.addMatcher(MatcherForFunc, &MatchCallback);
-
-    //
-    if(UntrustedFuncName != ""){
-       const auto MatcherForUntrustedFunc = callExpr(callee(functionDecl(hasName(UntrustedFuncName)))).bind(UntrustedFuncName);
-        MatchFinder.addMatcher(MatcherForUntrustedFunc, &MatchCallback);
-    }
-
     MatchFinder.matchAST(Context);
   }
 
@@ -388,16 +324,23 @@ protected:
     return clang::PluginASTAction::ReplaceAction;
   }
 
+  // Automatically run the plugin after the main AST action
+  // PluginASTAction::ActionType getActionType() override {
+  //   llvm::outs() << "ActionType ... \n";
+  //   return AddAfterMainAction;
+  // }
+
   void EndSourceFileAction() override{
      auto FileRewriteBuffer { FileRewriter_.getRewriteBufferFor(FileID_) };
      llvm::outs() << "EndSourceFileAction ing\n";
-     llvm::outs()<< UFuncName << "\n";
+    //  llvm::outs()<< UFuncName << "\n";
     if (!FileRewriteBuffer) {
         llvm::outs() << "Rewrite buffer is null, no modifications to apply.\n";
         //return;
     }else{
       std::string BufferContent = std::string(FileRewriteBuffer->begin(), FileRewriteBuffer->end());
       llvm::outs() << "Recompile Modified Code:\n" << BufferContent << "\n";
+      is_recompile = true;
       compile(CI_, FileName_, FileRewriteBuffer->begin(), FileRewriteBuffer->end());
     }
 
@@ -413,5 +356,5 @@ private:
 };
 
 static clang::FrontendPluginRegistry::Add<FireAction> X("CodeRefactor", "generate code by recompile.");
-static PragmaHandlerRegistry::Add<MyPragmaHandler> P("bound", "");
-static PragmaHandlerRegistry::Add<UntrustedPragmaHandler> P2("untrusted_call", "");
+static PragmaHandlerRegistry::Add<BoundHandler> P("bound", "");
+static PragmaHandlerRegistry::Add<UntrustedCallHandler> P2("untrusted_call", "");
