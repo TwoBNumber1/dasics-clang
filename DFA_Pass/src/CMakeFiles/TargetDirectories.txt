@@ -1,0 +1,3 @@
+/home/chengyue/MacroGuard/DFA_Pass/src/CMakeFiles/SVFAnalysisPass.dir
+/home/chengyue/MacroGuard/DFA_Pass/src/CMakeFiles/edit_cache.dir
+/home/chengyue/MacroGuard/DFA_Pass/src/CMakeFiles/rebuild_cache.dir
