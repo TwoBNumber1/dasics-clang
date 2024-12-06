@@ -89,7 +89,7 @@ target_link_libraries(MacroGuard
 "$<$<PLATFORM_ID:Darwin>:-undefined dynamic_lookup>")
 
 set(_CodeRefactor_SOURCE
-  CodeRefactor_recompile.cpp
+  CodeRefactor_case.cpp
 )
 add_library(CodeRefactor MODULE
                  ${_CodeRefactor_SOURCE})

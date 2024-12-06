@@ -20,6 +20,18 @@ clang -cc1 -load ./xxx.so -plugin xxx test.cpp
 # qemu
 Under `qemu-dasics` folder, run `run_qemu.sh` to start qemu.
 
+# 说明
++ #pragma untrusted_call 必须紧跟函数调用
+
++ Modify CMakeLists.txt to change the version of dasics compiler
+
+```C
+set(_CodeRefactor_SOURCE
+  CodeRefactor_case.cpp // for no pragma bound test
+  CodeRefactor_recompile.cpp // for pragma bound test
+)
+```
+
 # 参考link
 https://github.com/xiaoweiChen/LLVM-Techniques-Tips-and-Best-Practies
 
