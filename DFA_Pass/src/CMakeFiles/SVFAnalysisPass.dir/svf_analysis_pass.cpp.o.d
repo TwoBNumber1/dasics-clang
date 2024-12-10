@@ -1,8 +1,6 @@
 src/CMakeFiles/SVFAnalysisPass.dir/svf_analysis_pass.cpp.o: \
  /home/chengyue/MacroGuard/DFA_Pass/src/svf_analysis_pass.cpp \
- /usr/include/stdc-predef.h \
- /home/chengyue/MacroGuard/SVF/llvm-16.0.0.obj/include/llvm/Pass.h \
- /usr/include/c++/11/string \
+ /usr/include/stdc-predef.h /usr/include/c++/11/string \
  /usr/include/x86_64-linux-gnu/c++/11/bits/c++config.h \
  /usr/include/x86_64-linux-gnu/c++/11/bits/os_defines.h \
  /usr/include/features.h /usr/include/features-time64.h \
@@ -134,6 +132,7 @@ src/CMakeFiles/SVFAnalysisPass.dir/svf_analysis_pass.cpp.o: \
  /usr/include/x86_64-linux-gnu/bits/types/error_t.h \
  /usr/include/c++/11/bits/charconv.h \
  /usr/include/c++/11/bits/basic_string.tcc \
+ /home/chengyue/MacroGuard/SVF/llvm-16.0.0.obj/include/llvm/Pass.h \
  /home/chengyue/MacroGuard/SVF/llvm-16.0.0.obj/include/llvm/PassAnalysisSupport.h \
  /home/chengyue/MacroGuard/SVF/llvm-16.0.0.obj/include/llvm/ADT/STLExtras.h \
  /home/chengyue/MacroGuard/SVF/llvm-16.0.0.obj/include/llvm/ADT/Hashing.h \
