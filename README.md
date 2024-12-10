@@ -18,7 +18,19 @@ clang -cc1 -load ./xxx.so -plugin xxx test.cpp
  clang --target=riscv64-unknown-linux-gnu -march=rv64gc -fPIC -Xclang -load -Xclang ./libCodeRefactor.so -fno-stack-protector -O0 -g -static --sysroot=/opt/riscv/sysroot -I/yourpath/DASICS-case-study/LibDASICS/include  -L/opt/riscv/sysroot/usr/lib -L/opt/riscv/sysroot/lib source/attack-case.c -o build/attack-case /yourpath/DASICS-case-study/LibDASICS/build/LibDASICS.a -T/yourpath/DASICS-case-study/LibDASICS/ld.lds 
 
 # qemu
-...
+Under `qemu-dasics` folder, run `run_qemu.sh` to start qemu.
+
+# 说明
++ #pragma untrusted_call 必须紧跟函数调用
+
++ Modify CMakeLists.txt to change the version of dasics compiler
+
+```C
+set(_CodeRefactor_SOURCE
+  CodeRefactor_case.cpp // for no pragma bound test
+  CodeRefactor_recompile.cpp // for pragma bound test
+)
+```
 
 # 参考link
 https://github.com/xiaoweiChen/LLVM-Techniques-Tips-and-Best-Practies

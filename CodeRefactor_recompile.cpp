@@ -41,6 +41,8 @@ using namespace clang;
 std::vector<std::string> Args;
 std::vector<std::vector<std::string>> Args_vec;
 std::map<std::string, std::vector<std::vector<std::string>>> Bound_map;
+std::vector<std::vector<std::string>> Args_vec;
+std::map<std::string, std::vector<std::vector<std::string>>> Bound_map;
 std::string UFuncName;
 bool is_recompile = false;
 void BoundHandler::HandlePragma(clang::Preprocessor &PP, clang::PragmaIntroducer Introducer, clang::Token &FirstToken) {

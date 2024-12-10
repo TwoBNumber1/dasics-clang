@@ -41,98 +41,163 @@ using namespace ast_matchers;
 // CodeRefactorMatcher - implementation
 //-----------------------------------------------------------------------------
 
-//代码检查回调 Matcher == handler match触发
-void CodeRefactorMatcher::run(const MatchFinder::MatchResult &Result) {
+class CodeRefactorASTVisitor : public RecursiveASTVisitor<CodeRefactorASTVisitor> {
+public:
+    explicit CodeRefactorASTVisitor(ASTContext &Context) : Context(Context) {}
 
-  //在Consumer中bind过的name 传递给getNodeAs可以找到该处节点
-  llvm::outs() << "ASTMatcher occur.\n" ;
-  const CallExpr *Call = Result.Nodes.getNodeAs<clang::CallExpr>("A");
-  const ASTContext *Ctx = Result.Context;
-  const SourceManager &SM = Ctx->getSourceManager();
-  //表达式位置
-  SourceLocation CallLoc = Call->getExprLoc();
+    // bool VisitFunctionDecl(FunctionDecl *FuncDecl) {
+    //     // 修改函数名为 "printf"
+    //     if (FuncDecl->getNameInfo().getName().getAsString() == "A") {
+    //         FuncDecl->setName(Context->Idents.get("printf"));
+    //     }
+    //     return true;
+    // }
 
-  // //参数列表 先跑一个没有参数的
-  // QualType VoidTy = Ctx->VoidTy;
-  // Expr *Args[] = {};
-  // unsigned NumArgs = sizeof(Args) / sizeof(Args[0]);
-  // // 找到 函数的声明
-  // DeclarationNameInfo Info(Ctx->getIdentifierInfoForName("printf"));
-  // FunctionDecl *FuncDecl = Ctx->getLookupName(CallLoc, Info);
-  // // 创建一个新的 CallExpr
-  // // 创建函数调用表达式
-  // CallExpr *NewCall = CallExpr::Create(Ctx, FuncDecl, CallLoc,
-  //                                      Call->getType(), Args, NumArgs,
-  //                                      nullptr, VoidTy);
- 
+    bool VisitCallExpr(CallExpr *Call) {
+        // 修改函数调用的函数名为 "printf"
+        llvm::outs() << "Handing CallExpr: " << Call->getDirectCallee()->getNameInfo().getAsString() << "\n";
+        if (FunctionDecl *FD = Call->getDirectCallee()) {
+            if(FD->getNameInfo().getAsString() == "A") {
+                llvm::outs() << "Before Modifty: Function Name: " << FD->getNameAsString() << "\n";
+                for (unsigned i = 0; i < Call->getNumArgs(); ++i) {
+                    Expr *Arg = Call->getArg(i);
+                    Arg->dump(); // 打印参数的 AST 表示
+                }
 
-  //TODO:插入AST... 
-  // 获取函数调用的 SourceRange
-  SourceRange Range = Call->getSourceRange();
+                // IdentifierInfo &II = Context.Idents.get("printf");
+                // FD->setDeclName(DeclarationName(&II));
+                // QualType ParamType = Context.IntTy;
+                // ParmVarDecl *Param = ParmVarDecl::Create(Context, FD, SourceLocation(), SourceLocation(),
+                //                                         &Context.Idents.get("param"), ParamType, nullptr, SC_None, nullptr);
+                // SmallVector<ParmVarDecl *, 1> Params;
+                // Params.push_back(Param);
+                // FD->setParams(Params);
+                QualType CharPtrType = Context.getPointerType(Context.CharTy.withConst());
+                // 创建新的字符串字面量参数
+                StringLiteral *NewStrLiteral = StringLiteral::Create(Context, "Hello world!\n", StringLiteralKind::Ordinary, false, CharPtrType, SourceLocation());
 
-  // 创建新的函数调用字符串
-  std::string NewCode = "printf(\"New\");\n";
+                // 创建 ArrayToPointerDecay 转换
+                ImplicitCastExpr *ArrayToPointerDecay = ImplicitCastExpr::Create(Context, CharPtrType, CK_ArrayToPointerDecay, NewStrLiteral, nullptr, VK_PRValue, FPOptionsOverride());
 
-  // 在函数调用之前插入新的代码
-  CodeRefactorRewriter.ReplaceText(SM.getExpansionLoc(Range.getBegin()), 0, NewCode);
+                // 创建 NoOp 转换
+                ImplicitCastExpr *NoOpCast = ImplicitCastExpr::Create(Context, CharPtrType, CK_NoOp, ArrayToPointerDecay, nullptr, VK_PRValue, FPOptionsOverride());
 
-}
+                // 修改第一个参数为新的字符串字面量
+                Call->setArg(0, NoOpCast);
 
-void CodeRefactorMatcher::onEndOfTranslationUnit() {
-  // Output to stdout 将修改过的代码打印到标准输出
-  CodeRefactorRewriter
-      .getEditBuffer(CodeRefactorRewriter.getSourceMgr().getMainFileID())
-      .write(llvm::outs());
-}
+                llvm::outs() << "After modify: Function Name: " << FD->getNameAsString() << "\n";
+                for (unsigned i = 0; i < Call->getNumArgs(); ++i) {
+                    Expr *Arg = Call->getArg(i);
+                    Arg->dump(); // 打印参数的 AST 表示
+                }
+            }
+        }
+        return true;
+    }
 
-// 设置Matcher的匹配规则，匹配成功的AST结点交给handler参数进行处理
-CodeRefactorASTConsumer::CodeRefactorASTConsumer(Rewriter &R)
-    : CodeRefactorHandler(R) {
-  llvm::outs() << "ASTMatcher ing \n" ;
+    // 在函数体中添加一个新的语句
+    // bool VisitStmt(Stmt *S) {
+    //     if (CompoundStmt *CS = dyn_cast<CompoundStmt>(S)) {
+    //         ASTContext &Ctx = *Context;
 
-  // TODO:匹配 or 查找
-    const auto MatcherForFunc = callExpr(
-       callee(functionDecl(hasName("A")))).bind("A");
-  // const auto MatcherForMemberAccess = cxxMemberCallExpr(
-  //     callee(memberExpr(member(hasName(OldName))).bind("MemberAccess")),
-  //     thisPointerType(cxxRecordDecl(isSameOrDerivedFrom(hasName(ClassName)))));
+            // 获取printf函数的声明
+            // TranslationUnitDecl *TUDecl = Ctx.getTranslationUnitDecl();
+            // FunctionDecl *PrintfDecl = nullptr;
+            // for (auto *D : TUDecl->decls()) {
+            //     if (FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
+            //         if (FD->getName() == "printf") {
+            //             PrintfDecl = FD;
+            //             break;
+            //         }
+            //     }
+            // }
 
-  // Finder.addMatcher(MatcherForMemberAccess, &CodeRefactorHandler);
+            // if (!PrintfDecl) {
+            //     llvm::errs() << "Error: printf function not found.\n";
+            //     return false;
+            // }
 
+            // 创建printf函数调用的参数
+            // StringLiteral *FormatStr = StringLiteral::Create(Ctx, "Hello, World!\n", StringLiteralKind::Ordinary, false, Ctx.CharTy, SourceLocation());
+            // DeclRefExpr *PrintfRef = DeclRefExpr::Create(Ctx, NestedNameSpecifierLoc(), SourceLocation(), PrintfDecl, false, SourceLocation(), PrintfDecl->getType(), VK_LValue);
 
-    Finder.addMatcher(MatcherForFunc, &CodeRefactorHandler);
-}
+            // PrintfDecl->setArg(0, FormatStr);
+
+            // 创建printf函数调用
+            // Expr *PrintfArgs[] = { FormatStr };
+            // ArrayRef<Expr *> Args(PrintfArgs);
+            // CallExpr *PrintfCall = CallExpr::Create(Ctx, PrintfRef, PrintfArgs, Ctx.IntTy, ExprValueKind::VK_PRValue, SourceLocation(), FPOptionsOverride());
+
+            // // 创建一个新的语句块并插入printf调用
+            // SmallVector<Stmt*, 8> NewBody;
+            // NewBody.push_back(PrintfCall);
+            // NewBody.append(CS->body().begin(), CS->body().end());
+
+            // CompoundStmt *NewCS = CompoundStmt::Create(Ctx, NewBody, FPOptionsOverride(), CS->getLBracLoc(), CS->getRBracLoc());
+
+            // // 替换旧的CompoundStmt
+            // // ReplaceStmt(CS, NewCS);
+            // if (ParentMapContext *PM = Context->getParentMapContext()) {
+            //     if (Stmt *Parent = PM->getParents(CS)) {
+            //         if (CompoundStmt *ParentCS = dyn_cast<CompoundStmt>(Parent)) {
+            //             for (auto &Child : ParentCS->body()) {
+            //                 if (Child == CS) {
+            //                     Child = NewCS;
+            //                     break;
+            //                 }
+            //             }
+            //         }
+            //     }
+            // }
+        // }
+        // return true;
+    // }
+
+private:
+    ASTContext &Context;
+};
+
+//-----------------------------------------------------------------------------
+// ASTConsumer
+//-----------------------------------------------------------------------------
+class CodeRefactorASTConsumer : public clang::ASTConsumer {
+public:
+    explicit CodeRefactorASTConsumer(ASTContext &Context) : Visitor(Context) {}
+
+    void HandleTranslationUnit(ASTContext &Context) override {
+        Visitor.TraverseDecl(Context.getTranslationUnitDecl());
+    }
+
+private:
+    CodeRefactorASTVisitor Visitor;
+};
 
 //-----------------------------------------------------------------------------
 // FrontendAction 定义触发插件动作
 //-----------------------------------------------------------------------------
 class CodeRefactorAddPluginAction : public PluginASTAction {
 public:
-   bool ParseArgs(const CompilerInstance &CI,
-                       const std::vector<std::string> &arg){
-            return true;
-  }
+    std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
+                                                  StringRef file) override {
+        llvm::outs() << "ASTMatcher ing \n" ;
+        return std::make_unique<CodeRefactorASTConsumer>(CI.getASTContext());
+    }
 
-  static void PrintHelp(llvm::raw_ostream &ros) {
-    ros << "Help for CodeRefactor plugin goes here\n";
-  }
-
-  // Returns our ASTConsumer per translation unit.
-  std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
-                                                 StringRef file) override {
-    //设置触发时传递给translantion unit的参数 此处传递rewriter
-    llvm::outs() << "ASTMatcher ing \n" ;
-    RewriterForCodeRefactor.setSourceMgr(CI.getSourceManager(), CI.getLangOpts());
-    return std::make_unique<CodeRefactorASTConsumer>(RewriterForCodeRefactor);
-  }
-
-private:
-  Rewriter RewriterForCodeRefactor;
+    bool ParseArgs(const CompilerInstance &CI,
+                        const std::vector<std::string> &arg){
+        return true;
+    }
+    static void PrintHelp(llvm::raw_ostream &ros) {
+        ros << "Help for CodeRefactor plugin goes here\n";
+    }
+    ActionType getActionType() override {
+        return AddBeforeMainAction;
+    }
 };
 
 //-----------------------------------------------------------------------------
 // Registration
 //-----------------------------------------------------------------------------
 static FrontendPluginRegistry::Add<CodeRefactorAddPluginAction>
-    X(/*Name=*/"CodeRefactor",
-      /*Desc=*/"Change the name of a class method");
+X(/*Name=*/"CodeRefactor",
+  /*Desc=*/"Change the name of a class method");
