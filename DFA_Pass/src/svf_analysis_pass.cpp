@@ -4,6 +4,7 @@
 #include "llvm/Passes/PassPlugin.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/IR/IntrinsicInst.h" // 用于检查内建函数
@@ -116,8 +117,41 @@ struct SVFAnalysisPass : public PassInfoMixin<SVFAnalysisPass> {
 
                         // 打印实际参数节点的ID
                         outs() << "1. 当前实参的SVFG Node ID: " << snk->getId() << " Name:" << snk->getFun()->getName() << "\n";
-                        outs() << "2. Original parameter name: " << pagNode->getValue() << "\n";
+                        
+                        const Value *V = LLVMModuleSet::getLLVMModuleSet()->getLLVMValue(pagNode->getValue());
+                        outs() << "2. Original parameter name: " << V << "\n";
                         outs() << "3. Pag->toString():" << pagNode->toString() << "\n";
+
+                        if (!V) {
+                            errs() << "No LLVM Value associated with NodeID " << pagNode->toString() << "\n";
+                            return PreservedAnalyses::all();
+                        }
+
+                        // 获取 Value 的类型
+                        Type *Ty = V->getType();
+                        errs() << "Type of Value: ";
+                        Ty->print(errs());
+                        errs() << "\n";
+                        const DataLayout &DL = M.getDataLayout();
+                        if (const auto *PtrTy = llvm::dyn_cast<llvm::PointerType>(Ty)) {
+                            // 使用 GEP 或上下文获取元素类型
+                            if (const llvm::GetElementPtrInst *GEP = llvm::dyn_cast<llvm::GetElementPtrInst>(V)) {
+                                llvm::Type *ElementType = GEP->getSourceElementType();
+                                errs() << "Element Type of Pointer (from GEP): ";
+                                ElementType->print(errs());
+                                errs() << "\n";
+
+                                uint64_t TypeSize = DL.getTypeSizeInBits(ElementType) / 8;
+                                errs() << "Element Type Size (bytes): " << TypeSize << "\n";
+                            } else {
+                                errs() << "Cannot determine element type from opaque pointer.\n";
+                            }
+                        } else {
+                            // 获取元素类型的大小（以字节为单位）
+                            uint64_t TypeSize = DL.getTypeSizeInBits(Ty) / 8;
+                            errs() << "Type Size (bytes): " << TypeSize << "\n";
+                        }
+
                         // 调用 CollectPtsChain 方法，获取 Points-To 链
                         const PointsTo& pts = ander->getPts(snk->getId());
                         outs() << "4. ---------  迭代当前实参的Point-to Set -----------\n";
@@ -153,30 +187,35 @@ struct SVFAnalysisPass : public PassInfoMixin<SVFAnalysisPass> {
             }
         }
 
-        /*
+          // 遍历所有函数
         for (Function &F : M) {
-            if (!F.isDeclaration()) {
-                errs() << "Function: " << F.getName() << "\n";
-            }
-             // 遍历Module中的每条指令
-            for (Instruction &I : instructions(F)) {
-                // 如果是函数调用指令
-                if (CallInst* callInst = dyn_cast<CallInst>(&I)) {
-                    // 跳过内建函数 内建函数要分析吗？不用吧
-                    if (callInst->getIntrinsicID() != llvm::Intrinsic::not_intrinsic) {
-                        errs() << "Skipping intrinsic function: " << *callInst << "\n";
-                        continue;
-                    }
-                    errs() << "Analyzing call instruction: " << *callInst << "\n";
-                     // 获取调用点的所有参数
-                    for (unsigned i = 0; i < callInst->getNumOperands(); ++i) {
-                            Value* arg = callInst->getArgOperand(i);
-                            errs() << "Analyzing argument: " << *arg << "\n";  
+            for (BasicBlock &BB : F) {
+                for (Instruction &I : BB) {
+                    // 判断是否是 CallInst
+                    if (auto *Call = dyn_cast<CallInst>(&I)) {
+                        // 判断调用的函数是否是 @dasics_libcfg_alloc
+                        if (Function *Callee = Call->getCalledFunction()) {
+                            if (Callee->getName() == "dasics_libcfg_alloc") {
+                                errs() << "Found call to dasics_libcfg_alloc:\n";
+                                Call->print(errs());
+                                errs() << "\n";
+                                 // 获取原始的第 3 个参数
+                                Value *OldArg = Call->getArgOperand(2);
+                                // 创建新的值作为替换，例如将其替换为常量整数 42
+                                llvm::IRBuilder<> Builder(Call);
+                                Value *NewArg = Builder.getInt64(42);
+                                // 替换第 3 个参数
+                                Call->setArgOperand(2, NewArg);
+                                errs() << "Replaced third argument in call to 'dasics_libcfg_alloc'.\n";
+                                Call->print(errs());
+                            }
+                        }
                     }
                 }
             }
-            
-        }*///这里是利用LLVM的方法
+        }
+
+        //这里是利用LLVM的方法
         //delete pag; 会dump 暂时comment掉
         return PreservedAnalyses::all();
     }
