@@ -42,80 +42,81 @@ std::vector<std::string> Args;
 std::vector<std::vector<std::string>> Args_vec;
 std::map<std::string, std::vector<std::vector<std::string>>> Bound_map;
 std::string UFuncName;
+std::vector<std::string> UFuncName_vec;
 bool is_recompile = false;
-// void BoundHandler::HandlePragma(clang::Preprocessor &PP, clang::PragmaIntroducer Introducer, clang::Token &FirstToken) {
-//   clang::SourceLocation Loc = FirstToken.getLocation();
-//   clang::SourceManager &SM = PP.getSourceManager();
+void BoundHandler::HandlePragma(clang::Preprocessor &PP, clang::PragmaIntroducer Introducer, clang::Token &FirstToken) {
+  clang::SourceLocation Loc = FirstToken.getLocation();
+  clang::SourceManager &SM = PP.getSourceManager();
 
-//   if(is_recompile){
-//     return;
-//   }
+  if(is_recompile){
+    return;
+  }
 
-//   /* 解析pragma后面紧跟的参数 以逗号区分不同参数 以括号为边界 嵌套括号整体视为一个参数 */
-//   clang::Token Tok;
-//   PP.Lex(Tok);
+  /* 解析pragma后面紧跟的参数 以逗号区分不同参数 以括号为边界 嵌套括号整体视为一个参数 */
+  clang::Token Tok;
+  PP.Lex(Tok);
 
-//   if (Tok.isNot(clang::tok::l_paren)) {
-//     PP.getDiagnostics().Report(Loc, PP.getDiagnostics().getCustomDiagID(clang::DiagnosticsEngine::Error, "Expected '(' after #pragma bound"));
-//     return;
-//   }
+  if (Tok.isNot(clang::tok::l_paren)) {
+    PP.getDiagnostics().Report(Loc, PP.getDiagnostics().getCustomDiagID(clang::DiagnosticsEngine::Error, "Expected '(' after #pragma bound"));
+    return;
+  }
 
-//   std::string CurrentArg;
-//   int parenDepth = 1;
-//   Args.clear();
+  std::string CurrentArg;
+  int parenDepth = 1;
+  Args.clear();
 
-//   while (parenDepth > 0) {
-//     PP.Lex(Tok);
-//     if (Tok.is(clang::tok::r_paren)) {
-//       parenDepth--;
-//       if (parenDepth == 0) {
-//         if (!CurrentArg.empty()) {
-//           Args.push_back(CurrentArg);
-//         }
-//         break;
-//       } else {
-//         CurrentArg += ")";
-//         continue;
-//       }
-//     } else if (Tok.is(clang::tok::l_paren)) {
-//       parenDepth++;
-//       CurrentArg += "(";
-//       continue;
-//     } else if (Tok.is(clang::tok::comma)) {
-//       if(parenDepth == 1){
-//         Args.push_back(CurrentArg);
-//         CurrentArg.clear();
-//       } else if(parenDepth > 1){
-//         CurrentArg += ",";
-//       }
-//       continue;
-//     }
+  while (parenDepth > 0) {
+    PP.Lex(Tok);
+    if (Tok.is(clang::tok::r_paren)) {
+      parenDepth--;
+      if (parenDepth == 0) {
+        if (!CurrentArg.empty()) {
+          Args.push_back(CurrentArg);
+        }
+        break;
+      } else {
+        CurrentArg += ")";
+        continue;
+      }
+    } else if (Tok.is(clang::tok::l_paren)) {
+      parenDepth++;
+      CurrentArg += "(";
+      continue;
+    } else if (Tok.is(clang::tok::comma)) {
+      if(parenDepth == 1){
+        Args.push_back(CurrentArg);
+        CurrentArg.clear();
+      } else if(parenDepth > 1){
+        CurrentArg += ",";
+      }
+      continue;
+    }
 
-//     if (Tok.is(clang::tok::identifier) || Tok.is(clang::tok::numeric_constant) || Tok.is(clang::tok::string_literal) || Tok.is(clang::tok::pipe)) {
-//       if (!CurrentArg.empty()) {
-//         CurrentArg += " ";
-//       }
-//       if (Tok.is(clang::tok::identifier)) {
-//         CurrentArg += Tok.getIdentifierInfo()->getName().str();
-//       } else if (Tok.is(clang::tok::pipe)) {
-//         CurrentArg += "|";
-//       } else {
-//         CurrentArg += std::string(Tok.getLiteralData(), Tok.getLength());
-//       }
-//     } else {
-//       PP.getDiagnostics().Report(Loc, PP.getDiagnostics().getCustomDiagID(clang::DiagnosticsEngine::Error, "Unexpected token in #pragma bound arguments"));
-//       return;
-//     }
+    if (Tok.is(clang::tok::identifier) || Tok.is(clang::tok::numeric_constant) || Tok.is(clang::tok::string_literal) || Tok.is(clang::tok::pipe)) {
+      if (!CurrentArg.empty()) {
+        CurrentArg += " ";
+      }
+      if (Tok.is(clang::tok::identifier)) {
+        CurrentArg += Tok.getIdentifierInfo()->getName().str();
+      } else if (Tok.is(clang::tok::pipe)) {
+        CurrentArg += "|";
+      } else {
+        CurrentArg += std::string(Tok.getLiteralData(), Tok.getLength());
+      }
+    } else {
+      PP.getDiagnostics().Report(Loc, PP.getDiagnostics().getCustomDiagID(clang::DiagnosticsEngine::Error, "Unexpected token in #pragma bound arguments"));
+      return;
+    }
     
-//   }
+  }
 
-//   if (Args.size() != 3) {
-//     PP.getDiagnostics().Report(Loc, PP.getDiagnostics().getCustomDiagID(clang::DiagnosticsEngine::Error, "Expected exactly three arguments in #pragma bound"));
-//     return;
-//   }
-//   Args_vec.push_back(Args);
-//   llvm::outs() << "Found #pragma bound with arguments: " << Args[0] << ", " << Args[1] << ", " << Args[2] << "\n";
-// }
+  if (Args.size() != 3) {
+    PP.getDiagnostics().Report(Loc, PP.getDiagnostics().getCustomDiagID(clang::DiagnosticsEngine::Error, "Expected exactly three arguments in #pragma bound"));
+    return;
+  }
+  Args_vec.push_back(Args);
+  llvm::outs() << "Found #pragma bound with arguments: " << Args[0] << ", " << Args[1] << ", " << Args[2] << "\n";
+}
 
 void UntrustedCallHandler::HandlePragma(clang::Preprocessor &PP, clang::PragmaIntroducer Introducer, clang::Token &FirstToken) {
   /* 解析紧跟在 #pragma 后面的函数调用 使用一个自定义的lexer 避免影响预处理器 不过函数还是需要去符号表查一下 */
@@ -145,8 +146,9 @@ void UntrustedCallHandler::HandlePragma(clang::Preprocessor &PP, clang::PragmaIn
     Lexer.LexFromRawLexer(Tok);
     if (Tok.is(clang::tok::l_paren)) {
       UFuncName = Func_token.getIdentifierInfo()->getName().str();
+      UFuncName_vec.push_back(UFuncName);
       llvm::outs() << "Found function call: " << UFuncName << "\n";
-      if(UFuncName == "Malicious") {    // 识别到Malicious函数调用
+      if(Args_vec.size() == 0) {
         int paramIndex = 0;
         Args.clear();
         Lexer.LexFromRawLexer(Tok); // Skip '('
@@ -154,27 +156,28 @@ void UntrustedCallHandler::HandlePragma(clang::Preprocessor &PP, clang::PragmaIn
             if (Tok.is(clang::tok::raw_identifier)) {
               PP.LookUpIdentifierInfo(Tok);
             }
-            if (paramIndex == 1 && Tok.is(clang::tok::identifier)) {
-                Args.push_back(Tok.getIdentifierInfo()->getName().str());
-                Args.push_back("DASICS_LIBCFG_V | DASICS_LIBCFG_W | DASICS_LIBCFG_R");
+            if (Tok.is(clang::tok::identifier)) {
+                if (!Tok.getIdentifierInfo()->getName().equals("NULL")) {
+                  Args.push_back(Tok.getIdentifierInfo()->getName().str());
+                  Args.push_back("DASICS_LIBCFG_V | DASICS_LIBCFG_W | DASICS_LIBCFG_R");
+                  Args_vec.push_back(Args);
+                }
             }
             if (Tok.is(clang::tok::comma)) {
                 paramIndex++;
             }
             Lexer.LexFromRawLexer(Tok);
         }
-        Args_vec.push_back(Args);
-        Bound_map[UFuncName] = Args_vec;
-        llvm::outs() << "With bound param: \n";
-        for(auto &arg : Args_vec){
-            for(auto &arg_item : arg){
-            llvm::outs() << arg_item << " ";
-            }
-            llvm::outs() << "\n";
-        }
-      } else {
-        PP.getDiagnostics().Report(Loc, PP.getDiagnostics().getCustomDiagID(clang::DiagnosticsEngine::Error, "Only Malicious untrusted call is allowed now"));
       }
+      Bound_map[UFuncName] = Args_vec;
+      llvm::outs() << "With bound param: \n";
+      for(auto &arg : Args_vec){
+          for(auto &arg_item : arg){
+          llvm::outs() << arg_item << " ";
+          }
+          llvm::outs() << "\n";
+      }
+      Args_vec.clear();
     } else {
       PP.getDiagnostics().Report(Loc, PP.getDiagnostics().getCustomDiagID(clang::DiagnosticsEngine::Error, "Expected '(' after function name"));
     }
@@ -199,52 +202,65 @@ public:
   void run(clang::ast_matchers::MatchFinder::MatchResult const &Result) override{
     //在Consumer中bind过的name 传递给getNodeAs可以找到该处节点
     llvm::outs() << "ASTMatcher occur.\n" ;
-    const CallExpr *Call = Result.Nodes.getNodeAs<clang::CallExpr>(UFuncName);
-    const SourceManager &SM = Context_.getSourceManager();
-    //表达式位置
-    SourceLocation CallLoc = Call->getExprLoc();
-    // 获取函数调用的 SourceRange
-    SourceRange Range = Call->getSourceRange();
+    for(auto &UFuncName : UFuncName_vec){
+      const CallExpr *Call = Result.Nodes.getNodeAs<clang::CallExpr>(UFuncName);
+      const SourceManager &SM = Context_.getSourceManager();
+      //表达式位置
+      SourceLocation CallLoc = Call->getExprLoc();
+      // 获取函数调用的 SourceRange
+      SourceRange Range = Call->getSourceRange();
 
-    // 创建新的函数调用字符串
-    std::string BoudCode = "" + Args[0] + "_handler = dasics_libcfg_alloc(" \
-      + Args[1] + ", (uint64_t)" + Args[0] + ", (uint64_t)" + Args[0] + " + sizeof(" + Args[0] + ") - 1);\n\t";
-    std::string SPHandeCode = std::string("") + "uint64_t sp;\n\t" + "asm volatile (\"mv %0, sp\" : \"=r\"(sp));\n\t" \
-      + "stack_handler = dasics_libcfg_alloc(DASICS_LIBCFG_V | DASICS_LIBCFG_W | DASICS_LIBCFG_R, sp - 0x2000, sp);\n\t";
-    std::string FreeCode = std::string("") + "dasics_libcfg_free(" + Args[0] + "_handler);\n\t" + "dasics_libcfg_free(stack_handler);\n\t";
-    std::string CallCode = std::string("") + "lib_call(&" + UFuncName + ", (uint64_t)" + Args[0] + ");\n\t";
+      // 创建新的函数调用字符串
+      std::vector<std::string> BoudCode_vec;
+      std::string SPHandeCode = std::string("") + "uint64_t sp;\n\t" + "asm volatile (\"mv %0, sp\" : \"=r\"(sp));\n\t" \
+        + "stack_handler = dasics_libcfg_alloc(DASICS_LIBCFG_V | DASICS_LIBCFG_W | DASICS_LIBCFG_R, sp - 0x2000, sp);\n\t";
+      std::string FreeCode = std::string("") + "dasics_libcfg_free(" + Args[0] + "_handler);\n\t" + "dasics_libcfg_free(stack_handler);\n\t";
+      std::string CallCode = std::string("") + "lib_call(&" + UFuncName + ", (uint64_t)" + Args[0] + ");\n\t";
 
-    //找到主函数 -> FileID
-    FunctionDecl *Main = nullptr;
-    TranslationUnitDecl *TU = Context_.getTranslationUnitDecl();
-    for (auto *D : TU->decls()) {
-        if (FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
-            if (FD->getNameInfo().getName().getAsString() == "main") {
-                Main = FD;
-            }
+      for(auto &Args : Bound_map[UFuncName]){
+        std::string BoudCode;
+        if(Args.size() == 2) {
+          BoudCode = "" + Args[0] + "_handler = dasics_libcfg_alloc(" \
+          + Args[1] + ", (uint64_t)" + Args[0] + ", (uint64_t)" + Args[0] + " + sizeof(" + Args[0] + ") - 1);\n\t";
+        } else if(Args.size() == 3) {
+          BoudCode = "" + Args[0] + "_handler = dasics_libcfg_alloc(" \
+          + Args[2] + ", (uint64_t)" + Args[0] + ", (uint64_t)" + Args[0] + " + " + Args[1] + " - 1);\n\t";
         }
-    }
-    // 在函数调用之前插入新的代码
-    llvm::outs() << "Rewrite text.. ..\n"; 
-
-    // 获取函数调用的结束位置
-    SourceLocation EndLoc = Call->getEndLoc();
-    // 移动到分号之后的位置
-    while (true) {
-      EndLoc = EndLoc.getLocWithOffset(1);
-      if (SM.getCharacterData(EndLoc)[0] == ';') {
-          EndLoc = EndLoc.getLocWithOffset(1);
-          break;
+        BoudCode_vec.push_back(BoudCode);
       }
+      //找到主函数 -> FileID
+      FunctionDecl *Main = nullptr;
+      TranslationUnitDecl *TU = Context_.getTranslationUnitDecl();
+      for (auto *D : TU->decls()) {
+          if (FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
+              if (FD->getNameInfo().getName().getAsString() == "main") {
+                  Main = FD;
+              }
+          }
+      }
+      // 在函数调用之前插入新的代码
+      llvm::outs() << "Rewrite text.. ..\n"; 
+
+      // 获取函数调用的结束位置
+      SourceLocation EndLoc = Call->getEndLoc();
+      // 移动到分号之后的位置
+      while (true) {
+        EndLoc = EndLoc.getLocWithOffset(1);
+        if (SM.getCharacterData(EndLoc)[0] == ';') {
+            EndLoc = EndLoc.getLocWithOffset(1);
+            break;
+        }
+      }
+      FileRewriter_->ReplaceText(SourceRange(CallLoc, EndLoc), CallCode);
+      for(auto &BoudCode : BoudCode_vec){
+        FileRewriter_->InsertText(CallLoc , BoudCode, true);
+      }
+      FileRewriter_->InsertText(CallLoc , SPHandeCode, true);
+      FileRewriter_->InsertText(EndLoc, FreeCode, true);
+      //FileRewriter_->InsertText(EndLoc, "printf(\"New\");", true);
+
+      *FileID_ = SM.getFileID(Main->getBeginLoc());
     }
-    FileRewriter_->ReplaceText(SourceRange(CallLoc, EndLoc), CallCode);
-    FileRewriter_->InsertText(CallLoc , BoudCode, true);
-    FileRewriter_->InsertText(CallLoc , SPHandeCode, true);
-    FileRewriter_->InsertText(EndLoc, FreeCode, true);
-    //FileRewriter_->InsertText(EndLoc, "printf(\"New\");", true);
-
-    *FileID_ = SM.getFileID(Main->getBeginLoc());
-
   }
   
 void onEndOfTranslationUnit() override{
@@ -377,5 +393,5 @@ private:
 };
 
 static clang::FrontendPluginRegistry::Add<FireAction> X("CodeRefactor", "generate code by recompile.");
-// static PragmaHandlerRegistry::Add<BoundHandler> P("bound", "");
+static PragmaHandlerRegistry::Add<BoundHandler> P("bound", "");
 static PragmaHandlerRegistry::Add<UntrustedCallHandler> P2("untrusted_call", "");
